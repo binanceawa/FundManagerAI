@@ -488,3 +488,73 @@ contract FundManagerAI {
         return (
             FMAI_BPS,
             FMAI_MAX_FEE_BPS,
+            FMAI_MIN_DEPOSIT,
+            FMAI_MAX_STRATEGIES,
+            FMAI_HARVEST_COOLDOWN_BLOCKS,
+            FMAI_VESTING_BLOCKS,
+            FMAI_STRATEGY_CAP_BPS
+        );
+    }
+
+    function getChainId() external view returns (uint256) {
+        return block.chainid;
+    }
+
+    function getBlockNumber() external view returns (uint256) {
+        return block.number;
+    }
+
+    function getContractTokenBalance(address token) external view returns (uint256) {
+        return IERC20Min(token).balanceOf(address(this));
+    }
+
+    function getFullStrategy(uint256 strategyId) external view returns (
+        address target_,
+        address token_,
+        uint256 allocated_,
+        uint256 harvested_,
+        uint256 capBps_,
+        bool active_,
+        uint256 addedAtBlock_,
+        uint256 capWei_,
+        uint256 remainingCap_
+    ) {
+        if (strategyId == 0 || strategyId > strategyCount) revert FMAI_InvalidStrategyId();
+        FMAIStrategy storage s = fmaiStrategies[strategyId];
+        uint256 capWei = (tokenTotalDeposits[s.token] * s.capBps) / FMAI_BPS;
+        uint256 rem = capWei > s.allocated ? capWei - s.allocated : 0;
+        return (
+            s.target,
+            s.token,
+            s.allocated,
+            s.harvested,
+            s.capBps,
+            s.active,
+            s.addedAtBlock,
+            capWei,
+            rem
+        );
+    }
+
+    function getActiveStrategyIds() external view returns (uint256[] memory) {
+        uint256 count = 0;
+        for (uint256 i = 1; i <= strategyCount; i++) {
+            if (fmaiStrategies[i].active) count++;
+        }
+        uint256[] memory ids = new uint256[](count);
+        uint256 j = 0;
+        for (uint256 i = 1; i <= strategyCount; i++) {
+            if (fmaiStrategies[i].active) {
+                ids[j] = i;
+                j++;
+            }
+        }
+        return ids;
+    }
+
+    function getStrategyCountActive() external view returns (uint256) {
+        uint256 c = 0;
+        for (uint256 i = 1; i <= strategyCount; i++) {
+            if (fmaiStrategies[i].active) c++;
+        }
+        return c;
