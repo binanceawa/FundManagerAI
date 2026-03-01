@@ -418,3 +418,73 @@ contract FundManagerAI {
     function harvestCooldownRemaining() external view returns (uint256) {
         if (block.number >= lastHarvestBlock + FMAI_HARVEST_COOLDOWN_BLOCKS) return 0;
         return lastHarvestBlock + FMAI_HARVEST_COOLDOWN_BLOCKS - block.number;
+    }
+
+    function canHarvest() external view returns (bool) {
+        return block.number >= lastHarvestBlock + FMAI_HARVEST_COOLDOWN_BLOCKS;
+    }
+
+    function getStrategyCapRemaining(uint256 strategyId) external view returns (uint256) {
+        if (strategyId == 0 || strategyId > strategyCount) return 0;
+        FMAIStrategy storage s = fmaiStrategies[strategyId];
+        uint256 cap = (tokenTotalDeposits[s.token] * s.capBps) / FMAI_BPS;
+        return cap > s.allocated ? cap - s.allocated : 0;
+    }
+
+    function getVestingProgress(address user, address token) external view returns (
+        uint256 startBlock_,
+        uint256 endBlock_,
+        uint256 currentBlock_,
+        uint256 vestingAmount_,
+        uint256 claimed_
+    ) {
+        FMAIDepositor storage d = fmaiDepositors[user][token];
+        return (
+            d.vestingStartBlock,
+            d.vestingStartBlock + FMAI_VESTING_BLOCKS,
+            block.number,
+            d.vestingAmount,
+            d.yieldClaimed
+        );
+    }
+
+    function getDepositFeeForAmount(uint256 amount) external view returns (uint256) {
+        return (amount * depositFeeBps) / FMAI_BPS;
+    }
+
+    function getPerformanceFeeForAmount(uint256 amount) external view returns (uint256) {
+        return (amount * performanceFeeBps) / FMAI_BPS;
+    }
+
+    function getNetDepositAmount(uint256 grossAmount) external view returns (uint256) {
+        return grossAmount - (grossAmount * depositFeeBps) / FMAI_BPS;
+    }
+
+    function totalNetDeposits() external view returns (uint256) {
+        return totalDeposited - totalWithdrawn;
+    }
+
+    function getOwner() external view returns (address) {
+        return owner;
+    }
+
+    function getPaused() external view returns (bool) {
+        return fmaiPaused;
+    }
+
+    function getLastHarvestBlock() external view returns (uint256) {
+        return lastHarvestBlock;
+    }
+
+    function getConstantsBundle() external pure returns (
+        uint256 bps,
+        uint256 maxFeeBps,
+        uint256 minDeposit,
+        uint256 maxStrategies,
+        uint256 harvestCooldownBlocks,
+        uint256 vestingBlocks,
+        uint256 strategyCapBps
+    ) {
+        return (
+            FMAI_BPS,
+            FMAI_MAX_FEE_BPS,
