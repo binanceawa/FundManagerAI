@@ -1048,3 +1048,73 @@ contract FundManagerAI {
     function getStrategyCapBpsValue(uint256 strategyId) external view returns (uint256) {
         if (strategyId == 0 || strategyId > strategyCount) return 0;
         return fmaiStrategies[strategyId].capBps;
+    }
+
+    function computeNetAfterDepositFee(uint256 gross) external view returns (uint256) {
+        return gross - (gross * depositFeeBps) / FMAI_BPS;
+    }
+
+    function computeNetAfterPerfFee(uint256 gross) external view returns (uint256) {
+        return gross - (gross * performanceFeeBps) / FMAI_BPS;
+    }
+
+    function getTotalDepositedGlobal() external view returns (uint256) { return totalDeposited; }
+    function getTotalWithdrawnGlobal() external view returns (uint256) { return totalWithdrawn; }
+    function getTotalYieldHarvestedGlobal() external view returns (uint256) { return totalYieldHarvested; }
+
+    function getOwnerAddress() external view returns (address) { return owner; }
+    function getPausedStatus() external view returns (bool) { return fmaiPaused; }
+    function getLastHarvestBlockNumber() external view returns (uint256) { return lastHarvestBlock; }
+    function getGenesisBlockNumber() external view returns (uint256) { return genesisBlock; }
+
+    function getContractAddress() external view returns (address) { return address(this); }
+
+    function getBlockTimestamp() external view returns (uint256) { return block.timestamp; }
+
+    function getChainIdValue() external view returns (uint256) { return block.chainid; }
+
+    function supportsToken(address token) external view returns (bool) { return allowedTokens[token]; }
+
+    function getTokenDepositTotal(address token) external view returns (uint256) {
+        return tokenTotalDeposits[token];
+    }
+
+    function getDepositorDeposited(address user, address token) external view returns (uint256) {
+        return fmaiDepositors[user][token].deposited;
+    }
+
+    function getDepositorWithdrawn(address user, address token) external view returns (uint256) {
+        return fmaiDepositors[user][token].withdrawn;
+    }
+
+    function getDepositorNet(address user, address token) external view returns (uint256) {
+        FMAIDepositor storage d = fmaiDepositors[user][token];
+        return d.deposited - d.withdrawn;
+    }
+
+    uint256 public constant FMAI_SLOT_STRATEGY = 0;
+    uint256 public constant FMAI_SLOT_DEPOSITOR = 1;
+    bytes32 public constant FMAI_EIP712_NAME = keccak256("FundManagerAI");
+    bytes32 public constant FMAI_EIP712_VERSION = keccak256("1");
+
+    function getTypehashDeposit() external pure returns (bytes32) { return FMAI_DEPOSIT_TYPEHASH; }
+    function getTypehashClaim() external pure returns (bytes32) { return FMAI_CLAIM_TYPEHASH; }
+    function getTypehashHarvest() external pure returns (bytes32) { return FMAI_HARVEST_TYPEHASH; }
+    function getTypehashAllocate() external pure returns (bytes32) { return FMAI_ALLOCATE_TYPEHASH; }
+
+    function getDomainName() external pure returns (bytes32) { return FMAI_EIP712_NAME; }
+    function getDomainVersion() external pure returns (bytes32) { return FMAI_EIP712_VERSION; }
+
+    function strategyExists(uint256 strategyId) external view returns (bool) {
+        return strategyId != 0 && strategyId <= strategyCount;
+    }
+
+    function tokenCount() external view returns (uint256) { return tokenList.length; }
+
+    function totalAllocatedForToken(address token) external view returns (uint256 sum) {
+        for (uint256 i = 1; i <= strategyCount; i++) {
+            if (fmaiStrategies[i].token == token) sum += fmaiStrategies[i].allocated;
+        }
+    }
+
+    function totalHarvestedForToken(address token) external view returns (uint256 sum) {
