@@ -1258,3 +1258,73 @@ contract FundManagerAI {
     function getAggregateStats() external view returns (
         uint256 totalDep,
         uint256 totalWith,
+        uint256 totalYield,
+        uint256 netDepositsVal,
+        uint256 totalAlloc,
+        uint256 totalHarv
+    ) {
+        totalDep = totalDeposited;
+        totalWith = totalWithdrawn;
+        totalYield = totalYieldHarvested;
+        netDepositsVal = totalDeposited > totalWithdrawn ? totalDeposited - totalWithdrawn : 0;
+        totalAlloc = 0;
+        totalHarv = 0;
+        for (uint256 i = 1; i <= strategyCount; i++) {
+            totalAlloc += fmaiStrategies[i].allocated;
+            totalHarv += fmaiStrategies[i].harvested;
+        }
+    }
+
+    function getConstantsFull() external pure returns (
+        uint256 bpsDenom,
+        uint256 maxFeeBpsVal,
+        uint256 minDepositVal,
+        uint256 maxStrategiesVal,
+        uint256 harvestCooldownVal,
+        uint256 vestingBlocksVal,
+        uint256 strategyCapBpsVal,
+        uint256 versionVal,
+        uint256 reserveBpsVal,
+        uint256 emergencyDelayVal
+    ) {
+        return (
+            FMAI_BPS,
+            FMAI_MAX_FEE_BPS,
+            FMAI_MIN_DEPOSIT,
+            FMAI_MAX_STRATEGIES,
+            FMAI_HARVEST_COOLDOWN_BLOCKS,
+            FMAI_VESTING_BLOCKS,
+            FMAI_STRATEGY_CAP_BPS,
+            FMAI_VERSION,
+            FMAI_RESERVE_BPS,
+            FMAI_EMERGENCY_DELAY_BLOCKS
+        );
+    }
+
+    function getHarvestCooldownEndBlock() external view returns (uint256) {
+        return lastHarvestBlock + FMAI_HARVEST_COOLDOWN_BLOCKS;
+    }
+
+    function isHarvestAllowed() external view returns (bool) {
+        return block.number >= lastHarvestBlock + FMAI_HARVEST_COOLDOWN_BLOCKS;
+    }
+
+    function getVestingEndBlockFor(address user, address token) external view returns (uint256) {
+        FMAIDepositor storage d = fmaiDepositors[user][token];
+        return d.vestingStartBlock + FMAI_VESTING_BLOCKS;
+    }
+
+    function getClaimableYieldAmount(address user, address token) external view returns (uint256) {
+        FMAIDepositor storage d = fmaiDepositors[user][token];
+        if (d.vestingAmount == 0 || block.number < d.vestingStartBlock) return 0;
+        if (block.number >= d.vestingStartBlock + FMAI_VESTING_BLOCKS) return d.vestingAmount - d.yieldClaimed;
+        uint256 elapsed = block.number - d.vestingStartBlock;
+        uint256 vested = (d.vestingAmount * elapsed) / FMAI_VESTING_BLOCKS;
+        return vested > d.yieldClaimed ? vested - d.yieldClaimed : 0;
+    }
+
+    function getBalanceOf(address user, address token) external view returns (uint256) {
+        FMAIDepositor storage d = fmaiDepositors[user][token];
+        return d.deposited - d.withdrawn;
+    }
+
