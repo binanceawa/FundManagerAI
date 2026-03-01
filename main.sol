@@ -138,3 +138,73 @@ contract FundManagerAI {
 
         uint256 fee = (amount * depositFeeBps) / FMAI_BPS;
         uint256 net = amount - fee;
+        if (fee > 0) _pushToken(token, treasury, fee);
+
+        _pullToken(token, msg.sender, amount);
+        totalDeposited += amount;
+        tokenTotalDeposits[token] += amount;
+
+        FMAIDepositor storage d = fmaiDepositors[msg.sender][token];
+        d.deposited += net;
+        d.lastDepositBlock = block.number;
+        if (tokenList.length == 0 || tokenTotalDeposits[token] == net) {
+            bool found;
+            for (uint256 i = 0; i < tokenList.length; i++) {
+                if (tokenList[i] == token) { found = true; break; }
+            }
+            if (!found) tokenList.push(token);
+        }
+
+        emit FMAI_Deposit(msg.sender, token, amount, fee, net);
+    }
+
+    function withdraw(address token, uint256 amount) external nonReentrant {
+        if (token == address(0)) revert FMAI_ZeroAddress();
+        if (amount == 0) revert FMAI_ZeroAmount();
+        FMAIDepositor storage d = fmaiDepositors[msg.sender][token];
+        uint256 available = d.deposited - d.withdrawn;
+        if (amount > available) revert FMAI_InsufficientBalance();
+
+        d.withdrawn += amount;
+        totalWithdrawn += amount;
+        tokenTotalDeposits[token] -= amount;
+        _pushToken(token, msg.sender, amount);
+        emit FMAI_Withdraw(msg.sender, token, amount);
+    }
+
+    function addStrategy(address target, address token, uint256 capBps) external onlyOwner {
+        if (strategyCount >= FMAI_MAX_STRATEGIES) revert FMAI_MaxStrategies();
+        if (capBps > FMAI_STRATEGY_CAP_BPS) revert FMAI_InvalidBps();
+        strategyCount++;
+        uint256 id = strategyCount;
+        fmaiStrategies[id] = FMAIStrategy({
+            target: target,
+            token: token,
+            allocated: 0,
+            harvested: 0,
+            capBps: capBps,
+            active: true,
+            addedAtBlock: block.number
+        });
+        emit FMAI_StrategyAdded(id, target, token, capBps);
+    }
+
+    function allocateToStrategy(uint256 strategyId, uint256 amount) external onlyOwner whenNotPaused nonReentrant {
+        if (strategyId == 0 || strategyId > strategyCount) revert FMAI_InvalidStrategyId();
+        FMAIStrategy storage s = fmaiStrategies[strategyId];
+        if (!s.active) revert FMAI_StrategyInactive();
+        if (amount == 0) revert FMAI_ZeroAmount();
+
+        uint256 cap = (tokenTotalDeposits[s.token] * s.capBps) / FMAI_BPS;
+        if (s.allocated + amount > cap) revert FMAI_StrategyCapExceeded();
+
+        s.allocated += amount;
+        _pushToken(s.token, s.target, amount);
+        emit FMAI_StrategyAllocated(strategyId, amount);
+    }
+
+    function harvestYield(uint256 strategyId, uint256 amount) external onlyOwner nonReentrant {
+        if (strategyId == 0 || strategyId > strategyCount) revert FMAI_InvalidStrategyId();
+        FMAIStrategy storage s = fmaiStrategies[strategyId];
+        if (!s.active) revert FMAI_StrategyInactive();
+        if (block.number < lastHarvestBlock + FMAI_HARVEST_COOLDOWN_BLOCKS) revert FMAI_HarvestCooldown();
