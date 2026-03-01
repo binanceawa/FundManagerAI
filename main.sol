@@ -768,3 +768,73 @@ contract FundManagerAI {
             FMAIStrategy storage s = fmaiStrategies[i];
             if (s.token == token && s.active) {
                 ids[j] = i;
+                j++;
+            }
+        }
+    }
+
+    function getVestingEndBlock(address user, address token) external view returns (uint256) {
+        FMAIDepositor storage d = fmaiDepositors[user][token];
+        return d.vestingStartBlock + FMAI_VESTING_BLOCKS;
+    }
+
+    function getMinDeposit() external pure returns (uint256) {
+        return FMAI_MIN_DEPOSIT;
+    }
+
+    function getMaxStrategies() external pure returns (uint256) {
+        return FMAI_MAX_STRATEGIES;
+    }
+
+    function getVestingBlocks() external pure returns (uint256) {
+        return FMAI_VESTING_BLOCKS;
+    }
+
+    function getHarvestCooldownBlocks() external pure returns (uint256) {
+        return FMAI_HARVEST_COOLDOWN_BLOCKS;
+    }
+
+    function getBpsDenom() external pure returns (uint256) {
+        return FMAI_BPS;
+    }
+
+    function getMaxFeeBps() external pure returns (uint256) {
+        return FMAI_MAX_FEE_BPS;
+    }
+
+    function getStrategyCapBpsLimit() external pure returns (uint256) {
+        return FMAI_STRATEGY_CAP_BPS;
+    }
+
+    function isOwner(address account) external view returns (bool) {
+        return account == owner;
+    }
+
+    function isTreasury(address account) external view returns (bool) {
+        return account == treasury;
+    }
+
+    function isYieldKeeper(address account) external view returns (bool) {
+        return account == yieldKeeper;
+    }
+
+    function isVault(address account) external view returns (bool) {
+        return account == vault;
+    }
+
+    function getDomainInfo() external view returns (bytes32 domainSep_, uint256 genesis_) {
+        return (domainSeparator, genesisBlock);
+    }
+
+    function estimateYieldAfterFee(uint256 grossYield, uint256 bps) external pure returns (uint256 netYield) {
+        uint256 fee = (grossYield * bps) / FMAI_BPS;
+        return grossYield - fee;
+    }
+
+    function estimateDepositNet(uint256 gross, uint256 bps) external pure returns (uint256 net) {
+        return gross - (gross * bps) / FMAI_BPS;
+    }
+
+    function getStrategyAddedAtBlock(uint256 strategyId) external view returns (uint256) {
+        if (strategyId == 0 || strategyId > strategyCount) return 0;
+        return fmaiStrategies[strategyId].addedAtBlock;
