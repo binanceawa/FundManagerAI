@@ -978,3 +978,73 @@ contract FundManagerAI {
         token_ = tokenList[index];
         total_ = tokenTotalDeposits[token_];
     }
+
+    function getDepositFeeFor(uint256 amount) external view returns (uint256) {
+        return (amount * depositFeeBps) / FMAI_BPS;
+    }
+
+    function getPerformanceFeeFor(uint256 amount) external view returns (uint256) {
+        return (amount * performanceFeeBps) / FMAI_BPS;
+    }
+
+    function getVestingBlocksConstant() external pure returns (uint256) { return FMAI_VESTING_BLOCKS; }
+    function getHarvestCooldownConstant() external pure returns (uint256) { return FMAI_HARVEST_COOLDOWN_BLOCKS; }
+    function getMinDepositConstant() external pure returns (uint256) { return FMAI_MIN_DEPOSIT; }
+    function getMaxStrategiesConstant() external pure returns (uint256) { return FMAI_MAX_STRATEGIES; }
+    function getBpsConstant() external pure returns (uint256) { return FMAI_BPS; }
+    function getMaxFeeBpsConstant() external pure returns (uint256) { return FMAI_MAX_FEE_BPS; }
+    function getStrategyCapBpsConstant() external pure returns (uint256) { return FMAI_STRATEGY_CAP_BPS; }
+
+    function getDepositorLastDepositBlock(address user, address token) external view returns (uint256) {
+        return fmaiDepositors[user][token].lastDepositBlock;
+    }
+
+    function getDepositorPendingYield(address user, address token) external view returns (uint256) {
+        return fmaiDepositors[user][token].pendingYield;
+    }
+
+    function getDepositorVestingAmount(address user, address token) external view returns (uint256) {
+        return fmaiDepositors[user][token].vestingAmount;
+    }
+
+    function getDepositorYieldClaimed(address user, address token) external view returns (uint256) {
+        return fmaiDepositors[user][token].yieldClaimed;
+    }
+
+    function getDepositorVestingStartBlock(address user, address token) external view returns (uint256) {
+        return fmaiDepositors[user][token].vestingStartBlock;
+    }
+
+    function getStrategyTargetAddress(uint256 strategyId) external view returns (address) {
+        if (strategyId == 0 || strategyId > strategyCount) return address(0);
+        return fmaiStrategies[strategyId].target;
+    }
+
+    function getStrategyTokenAddress(uint256 strategyId) external view returns (address) {
+        if (strategyId == 0 || strategyId > strategyCount) return address(0);
+        return fmaiStrategies[strategyId].token;
+    }
+
+    function getStrategyAllocatedAmount(uint256 strategyId) external view returns (uint256) {
+        if (strategyId == 0 || strategyId > strategyCount) return 0;
+        return fmaiStrategies[strategyId].allocated;
+    }
+
+    function getStrategyHarvestedAmount(uint256 strategyId) external view returns (uint256) {
+        if (strategyId == 0 || strategyId > strategyCount) return 0;
+        return fmaiStrategies[strategyId].harvested;
+    }
+
+    function getStrategyIsActive(uint256 strategyId) external view returns (bool) {
+        if (strategyId == 0 || strategyId > strategyCount) return false;
+        return fmaiStrategies[strategyId].active;
+    }
+
+    function getStrategyAddedBlock(uint256 strategyId) external view returns (uint256) {
+        if (strategyId == 0 || strategyId > strategyCount) return 0;
+        return fmaiStrategies[strategyId].addedAtBlock;
+    }
+
+    function getStrategyCapBpsValue(uint256 strategyId) external view returns (uint256) {
+        if (strategyId == 0 || strategyId > strategyCount) return 0;
+        return fmaiStrategies[strategyId].capBps;
