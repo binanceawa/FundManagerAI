@@ -348,3 +348,73 @@ contract FundManagerAI {
             d.yieldClaimed,
             d.vestingStartBlock,
             d.vestingAmount
+        );
+    }
+
+    function getStrategyIdsPaginated(uint256 offset, uint256 limit) external view returns (uint256[] memory ids) {
+        uint256 n = strategyCount;
+        if (offset >= n) return new uint256[](0);
+        uint256 end = offset + limit;
+        if (end > n) end = n;
+        uint256 len = end - offset;
+        ids = new uint256[](len);
+        for (uint256 i = 0; i < len; i++) ids[i] = offset + i + 1;
+    }
+
+    function getStrategyBatch(uint256[] calldata strategyIds) external view returns (
+        address[] memory targets,
+        address[] memory tokens,
+        uint256[] memory allocateds,
+        uint256[] memory harvesteds,
+        bool[] memory actives
+    ) {
+        uint256 n = strategyIds.length;
+        targets = new address[](n);
+        tokens = new address[](n);
+        allocateds = new uint256[](n);
+        harvesteds = new uint256[](n);
+        actives = new bool[](n);
+        for (uint256 i = 0; i < n; i++) {
+            uint256 id = strategyIds[i];
+            if (id != 0 && id <= strategyCount) {
+                FMAIStrategy storage s = fmaiStrategies[id];
+                targets[i] = s.target;
+                tokens[i] = s.token;
+                allocateds[i] = s.allocated;
+                harvesteds[i] = s.harvested;
+                actives[i] = s.active;
+            }
+        }
+    }
+
+    function getTokenListLength() external view returns (uint256) {
+        return tokenList.length;
+    }
+
+    function getTokenAt(uint256 index) external view returns (address) {
+        return tokenList[index];
+    }
+
+    function isTokenAllowed(address token) external view returns (bool) {
+        return allowedTokens[token];
+    }
+
+    function getFeeConfig() external view returns (uint256 perfBps, uint256 depBps) {
+        return (performanceFeeBps, depositFeeBps);
+    }
+
+    function getImmutableAddresses() external view returns (address treasury_, address keeper_, address vault_) {
+        return (treasury, yieldKeeper, vault);
+    }
+
+    function getGenesisBlock() external view returns (uint256) {
+        return genesisBlock;
+    }
+
+    function getDomainSeparator() external view returns (bytes32) {
+        return domainSeparator;
+    }
+
+    function harvestCooldownRemaining() external view returns (uint256) {
+        if (block.number >= lastHarvestBlock + FMAI_HARVEST_COOLDOWN_BLOCKS) return 0;
+        return lastHarvestBlock + FMAI_HARVEST_COOLDOWN_BLOCKS - block.number;
