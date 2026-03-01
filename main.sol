@@ -558,3 +558,73 @@ contract FundManagerAI {
             if (fmaiStrategies[i].active) c++;
         }
         return c;
+    }
+
+    function getUserNonce(address user) external view returns (uint256) {
+        return userNonce[user];
+    }
+
+    function getTotalYieldHarvested() external view returns (uint256) {
+        return totalYieldHarvested;
+    }
+
+    function getTotalDeposited() external view returns (uint256) {
+        return totalDeposited;
+    }
+
+    function getTotalWithdrawn() external view returns (uint256) {
+        return totalWithdrawn;
+    }
+
+    function getStrategyAllocated(uint256 strategyId) external view returns (uint256) {
+        if (strategyId == 0 || strategyId > strategyCount) return 0;
+        return fmaiStrategies[strategyId].allocated;
+    }
+
+    function getStrategyHarvested(uint256 strategyId) external view returns (uint256) {
+        if (strategyId == 0 || strategyId > strategyCount) return 0;
+        return fmaiStrategies[strategyId].harvested;
+    }
+
+    function getStrategyToken(uint256 strategyId) external view returns (address) {
+        if (strategyId == 0 || strategyId > strategyCount) return address(0);
+        return fmaiStrategies[strategyId].token;
+    }
+
+    function getStrategyTarget(uint256 strategyId) external view returns (address) {
+        if (strategyId == 0 || strategyId > strategyCount) return address(0);
+        return fmaiStrategies[strategyId].target;
+    }
+
+    function getStrategyActive(uint256 strategyId) external view returns (bool) {
+        if (strategyId == 0 || strategyId > strategyCount) return false;
+        return fmaiStrategies[strategyId].active;
+    }
+
+    function vestingBlocksRemaining(address user, address token) external view returns (uint256) {
+        FMAIDepositor storage d = fmaiDepositors[user][token];
+        uint256 endBlock = d.vestingStartBlock + FMAI_VESTING_BLOCKS;
+        if (block.number >= endBlock) return 0;
+        return endBlock - block.number;
+    }
+
+    function isVestingComplete(address user, address token) external view returns (bool) {
+        FMAIDepositor storage d = fmaiDepositors[user][token];
+        return block.number >= d.vestingStartBlock + FMAI_VESTING_BLOCKS;
+    }
+
+    function getDepositBalanceBatch(address user, address[] calldata tokens) external view returns (uint256[] memory balances) {
+        uint256 n = tokens.length;
+        balances = new uint256[](n);
+        for (uint256 i = 0; i < n; i++) {
+            FMAIDepositor storage d = fmaiDepositors[user][tokens[i]];
+            balances[i] = d.deposited - d.withdrawn;
+        }
+    }
+
+    function getClaimableYieldBatch(address user, address[] calldata tokens) external view returns (uint256[] memory claimables) {
+        uint256 n = tokens.length;
+        claimables = new uint256[](n);
+        for (uint256 i = 0; i < n; i++) {
+            FMAIDepositor storage d = fmaiDepositors[user][tokens[i]];
+            if (block.number >= d.vestingStartBlock + FMAI_VESTING_BLOCKS) {
