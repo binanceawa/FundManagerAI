@@ -908,3 +908,73 @@ contract FundManagerAI {
     }
 
     function fractionToBps(uint256 num, uint256 denom) external pure returns (uint256 bps) {
+        if (denom == 0) return 0;
+        return (num * FMAI_BPS) / denom;
+    }
+
+    function applyBps(uint256 amount, uint256 bps) external pure returns (uint256 result) {
+        return (amount * bps) / FMAI_BPS;
+    }
+
+    function applyBpsReverse(uint256 amount, uint256 bps) external pure returns (uint256 result) {
+        return (amount * (FMAI_BPS - bps)) / FMAI_BPS;
+    }
+
+    function getTreasury() external view returns (address) { return treasury; }
+    function getYieldKeeper() external view returns (address) { return yieldKeeper; }
+    function getVault() external view returns (address) { return vault; }
+
+    function getStrategyCount() external view returns (uint256) { return strategyCount; }
+
+    function tokenListContains(address token) external view returns (bool) {
+        for (uint256 i = 0; i < tokenList.length; i++) {
+            if (tokenList[i] == token) return true;
+        }
+        return false;
+    }
+
+    function getDepositFeeBps() external view returns (uint256) { return depositFeeBps; }
+    function getPerformanceFeeBps() external view returns (uint256) { return performanceFeeBps; }
+
+    function netDeposits() external view returns (uint256) {
+        return totalDeposited > totalWithdrawn ? totalDeposited - totalWithdrawn : 0;
+    }
+
+    function getStrategyAllocationSum() external view returns (uint256 sum) {
+        for (uint256 i = 1; i <= strategyCount; i++) sum += fmaiStrategies[i].allocated;
+    }
+
+    function getStrategyHarvestSum() external view returns (uint256 sum) {
+        for (uint256 i = 1; i <= strategyCount; i++) sum += fmaiStrategies[i].harvested;
+    }
+
+    function getActiveStrategyCount() external view returns (uint256 c) {
+        for (uint256 i = 1; i <= strategyCount; i++) {
+            if (fmaiStrategies[i].active) c++;
+        }
+    }
+
+    function getInactiveStrategyCount() external view returns (uint256 c) {
+        for (uint256 i = 1; i <= strategyCount; i++) {
+            if (!fmaiStrategies[i].active) c++;
+        }
+    }
+
+    function getStrategyByIndex(uint256 index) external view returns (
+        uint256 id_,
+        address target_,
+        address token_,
+        uint256 allocated_,
+        bool active_
+    ) {
+        if (index >= strategyCount) revert FMAI_InvalidStrategyId();
+        uint256 id = index + 1;
+        FMAIStrategy storage s = fmaiStrategies[id];
+        return (id, s.target, s.token, s.allocated, s.active);
+    }
+
+    function getTokenTotalByIndex(uint256 index) external view returns (address token_, uint256 total_) {
+        if (index >= tokenList.length) revert FMAI_InvalidStrategyId();
+        token_ = tokenList[index];
+        total_ = tokenTotalDeposits[token_];
+    }
