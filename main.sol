@@ -208,3 +208,73 @@ contract FundManagerAI {
         FMAIStrategy storage s = fmaiStrategies[strategyId];
         if (!s.active) revert FMAI_StrategyInactive();
         if (block.number < lastHarvestBlock + FMAI_HARVEST_COOLDOWN_BLOCKS) revert FMAI_HarvestCooldown();
+
+        lastHarvestBlock = block.number;
+        (bool ok,) = s.target.call(abi.encodeWithSignature("withdraw(uint256)", amount));
+        if (!ok) revert FMAI_TransferFailed();
+        s.harvested += amount;
+        totalYieldHarvested += amount;
+        uint256 fee = (amount * performanceFeeBps) / FMAI_BPS;
+        if (fee > 0) _pushToken(s.token, treasury, fee);
+        emit FMAI_YieldHarvested(strategyId, amount);
+    }
+
+    function creditYieldToUser(address user, address token, uint256 amount) external onlyOwner {
+        if (user == address(0)) revert FMAI_ZeroAddress();
+        if (amount == 0) revert FMAI_ZeroAmount();
+        FMAIDepositor storage d = fmaiDepositors[user][token];
+        d.pendingYield += amount;
+        d.vestingStartBlock = block.number;
+        d.vestingAmount += amount;
+    }
+
+    function claimYield(address token) external nonReentrant {
+        FMAIDepositor storage d = fmaiDepositors[msg.sender][token];
+        uint256 claimable;
+        if (block.number >= d.vestingStartBlock + FMAI_VESTING_BLOCKS) {
+            claimable = d.vestingAmount - d.yieldClaimed;
+        } else {
+            uint256 elapsed = block.number - d.vestingStartBlock;
+            if (elapsed >= FMAI_VESTING_BLOCKS) {
+                claimable = d.vestingAmount - d.yieldClaimed;
+            } else {
+                uint256 vested = (d.vestingAmount * elapsed) / FMAI_VESTING_BLOCKS;
+                claimable = vested > d.yieldClaimed ? vested - d.yieldClaimed : 0;
+            }
+        }
+        if (claimable == 0) revert FMAI_NoYieldToClaim();
+        d.yieldClaimed += claimable;
+        _pushToken(token, msg.sender, claimable);
+        emit FMAI_YieldClaimed(msg.sender, claimable);
+    }
+
+    function setPaused(bool p) external onlyOwner {
+        fmaiPaused = p;
+        emit FMAI_PauseToggled(p);
+    }
+
+    function setFees(uint256 perfBps, uint256 depBps) external onlyOwner {
+        if (perfBps > FMAI_MAX_FEE_BPS || depBps > FMAI_MAX_FEE_BPS) revert FMAI_InvalidFee();
+        performanceFeeBps = perfBps;
+        depositFeeBps = depBps;
+        emit FMAI_FeesUpdated(perfBps, depBps);
+    }
+
+    function setTokenAllowed(address token, bool allowed) external onlyOwner {
+        allowedTokens[token] = allowed;
+        emit FMAI_TokenAllowed(token, allowed);
+    }
+
+    function setStrategyActive(uint256 strategyId, bool active) external onlyOwner {
+        if (strategyId == 0 || strategyId > strategyCount) revert FMAI_InvalidStrategyId();
+        fmaiStrategies[strategyId].active = active;
+    }
+
+    function transferOwnership(address newOwner) external onlyOwner {
+        if (newOwner == address(0)) revert FMAI_ZeroAddress();
+        emit FMAI_OwnershipTransferred(owner, newOwner);
+        owner = newOwner;
+    }
+
+    function getDepositBalance(address user, address token) external view returns (uint256) {
+        FMAIDepositor storage d = fmaiDepositors[user][token];
