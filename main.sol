@@ -698,3 +698,73 @@ contract FundManagerAI {
 
     function getDepositorSummary(address user) external view returns (
         uint256 totalDepositedByUser_,
+        uint256 totalWithdrawnByUser_,
+        uint256 netDeposited_
+    ) {
+        totalDepositedByUser_ = 0;
+        totalWithdrawnByUser_ = 0;
+        for (uint256 i = 0; i < tokenList.length; i++) {
+            address t = tokenList[i];
+            FMAIDepositor storage d = fmaiDepositors[user][t];
+            totalDepositedByUser_ += d.deposited;
+            totalWithdrawnByUser_ += d.withdrawn;
+        }
+        netDeposited_ = totalDepositedByUser_ - totalWithdrawnByUser_;
+    }
+
+    function getDepositorSummaryForToken(address user, address token) external view returns (
+        uint256 deposited_,
+        uint256 withdrawn_,
+        uint256 net_,
+        uint256 yieldClaimed_,
+        uint256 vestingAmount_
+    ) {
+        FMAIDepositor storage d = fmaiDepositors[user][token];
+        return (
+            d.deposited,
+            d.withdrawn,
+            d.deposited - d.withdrawn,
+            d.yieldClaimed,
+            d.vestingAmount
+        );
+    }
+
+    function totalAllocatedAcrossStrategies() external view returns (uint256 total) {
+        for (uint256 i = 1; i <= strategyCount; i++) {
+            total += fmaiStrategies[i].allocated;
+        }
+    }
+
+    function totalHarvestedAcrossStrategies() external view returns (uint256 total) {
+        for (uint256 i = 1; i <= strategyCount; i++) {
+            total += fmaiStrategies[i].harvested;
+        }
+    }
+
+    function getStrategyIdsForToken(address token) external view returns (uint256[] memory ids) {
+        uint256 count = 0;
+        for (uint256 i = 1; i <= strategyCount; i++) {
+            if (fmaiStrategies[i].token == token) count++;
+        }
+        ids = new uint256[](count);
+        uint256 j = 0;
+        for (uint256 i = 1; i <= strategyCount; i++) {
+            if (fmaiStrategies[i].token == token) {
+                ids[j] = i;
+                j++;
+            }
+        }
+    }
+
+    function getActiveStrategyIdsForToken(address token) external view returns (uint256[] memory ids) {
+        uint256 count = 0;
+        for (uint256 i = 1; i <= strategyCount; i++) {
+            FMAIStrategy storage s = fmaiStrategies[i];
+            if (s.token == token && s.active) count++;
+        }
+        ids = new uint256[](count);
+        uint256 j = 0;
+        for (uint256 i = 1; i <= strategyCount; i++) {
+            FMAIStrategy storage s = fmaiStrategies[i];
+            if (s.token == token && s.active) {
+                ids[j] = i;
