@@ -1328,3 +1328,73 @@ contract FundManagerAI {
         return d.deposited - d.withdrawn;
     }
 
+    function getThisContractBalance(address token) external view returns (uint256) {
+        return IERC20Min(token).balanceOf(address(this));
+    }
+
+    function getStrategyIdRange() external view returns (uint256 firstId, uint256 lastId) {
+        return (1, strategyCount);
+    }
+
+    function getTokenIndex(address token) external view returns (uint256 index, bool found) {
+        for (uint256 i = 0; i < tokenList.length; i++) {
+            if (tokenList[i] == token) return (i, true);
+        }
+        return (0, false);
+    }
+
+    function getStrategyIndicesForToken(address token) external view returns (uint256[] memory indices) {
+        uint256 c = 0;
+        for (uint256 i = 1; i <= strategyCount; i++) {
+            if (fmaiStrategies[i].token == token) c++;
+        }
+        indices = new uint256[](c);
+        uint256 j = 0;
+        for (uint256 i = 1; i <= strategyCount; i++) {
+            if (fmaiStrategies[i].token == token) {
+                indices[j] = i;
+                j++;
+            }
+        }
+    }
+
+    function getDepositFeeBpsCurrent() external view returns (uint256) { return depositFeeBps; }
+    function getPerformanceFeeBpsCurrent() external view returns (uint256) { return performanceFeeBps; }
+    function getCurrentOwner() external view returns (address) { return owner; }
+    function getPausedState() external view returns (bool) { return fmaiPaused; }
+    function getStrategyTotalCount() external view returns (uint256) { return strategyCount; }
+    function getLastHarvestAtBlock() external view returns (uint256) { return lastHarvestBlock; }
+    function getGenesisBlockAt() external view returns (uint256) { return genesisBlock; }
+    function getTreasuryAddress() external view returns (address) { return treasury; }
+    function getYieldKeeperAddress() external view returns (address) { return yieldKeeper; }
+    function getVaultAddress() external view returns (address) { return vault; }
+    function getDomainSeparatorValue() external view returns (bytes32) { return domainSeparator; }
+    function getTotalDeposits() external view returns (uint256) { return totalDeposited; }
+    function getTotalWithdrawals() external view returns (uint256) { return totalWithdrawn; }
+    function getTotalYield() external view returns (uint256) { return totalYieldHarvested; }
+
+    function computeDepositFeeWei(uint256 amountWei, uint256 bpsVal) external pure returns (uint256 feeWei) {
+        return (amountWei * bpsVal) / FMAI_BPS;
+    }
+
+    function computePerformanceFeeWei(uint256 amountWei, uint256 bpsVal) external pure returns (uint256 feeWei) {
+        return (amountWei * bpsVal) / FMAI_BPS;
+    }
+
+    function netAmountAfterDepositFee(uint256 grossWei) external view returns (uint256) {
+        return grossWei - (grossWei * depositFeeBps) / FMAI_BPS;
+    }
+
+    function netAmountAfterPerformanceFee(uint256 grossWei) external view returns (uint256) {
+        return grossWei - (grossWei * performanceFeeBps) / FMAI_BPS;
+    }
+
+    function getStrategyDetails(uint256 id) external view returns (address tgt, address tkn, uint256 alloc, uint256 harv, bool act) {
+        if (id == 0 || id > strategyCount) revert FMAI_InvalidStrategyId();
+        FMAIStrategy storage s = fmaiStrategies[id];
+        return (s.target, s.token, s.allocated, s.harvested, s.active);
+    }
+
+    function getDepositorDetails(address user, address token) external view returns (uint256 dep, uint256 withdr, uint256 net) {
+        FMAIDepositor storage d = fmaiDepositors[user][token];
+        return (d.deposited, d.withdrawn, d.deposited - d.withdrawn);
