@@ -838,3 +838,73 @@ contract FundManagerAI {
     function getStrategyAddedAtBlock(uint256 strategyId) external view returns (uint256) {
         if (strategyId == 0 || strategyId > strategyCount) return 0;
         return fmaiStrategies[strategyId].addedAtBlock;
+    }
+
+    function getStrategyCapBps(uint256 strategyId) external view returns (uint256) {
+        if (strategyId == 0 || strategyId > strategyCount) return 0;
+        return fmaiStrategies[strategyId].capBps;
+    }
+
+    function hasDeposit(address user, address token) external view returns (bool) {
+        FMAIDepositor storage d = fmaiDepositors[user][token];
+        return d.deposited > d.withdrawn;
+    }
+
+    function hasVesting(address user, address token) external view returns (bool) {
+        FMAIDepositor storage d = fmaiDepositors[user][token];
+        return d.vestingAmount > d.yieldClaimed;
+    }
+
+    function getYieldVestedSoFar(address user, address token) external view returns (uint256) {
+        FMAIDepositor storage d = fmaiDepositors[user][token];
+        if (block.number >= d.vestingStartBlock + FMAI_VESTING_BLOCKS) return d.vestingAmount;
+        uint256 elapsed = block.number - d.vestingStartBlock;
+        return (d.vestingAmount * elapsed) / FMAI_VESTING_BLOCKS;
+    }
+
+    function getYieldPendingVest(address user, address token) external view returns (uint256) {
+        FMAIDepositor storage d = fmaiDepositors[user][token];
+        uint256 vested;
+        if (block.number >= d.vestingStartBlock + FMAI_VESTING_BLOCKS) vested = d.vestingAmount;
+        else {
+            uint256 elapsed = block.number - d.vestingStartBlock;
+            vested = (d.vestingAmount * elapsed) / FMAI_VESTING_BLOCKS;
+        }
+        return vested > d.yieldClaimed ? vested - d.yieldClaimed : 0;
+    }
+
+    function getStrategyAllocationsForToken(address token) external view returns (uint256[] memory allocations) {
+        uint256 count = 0;
+        for (uint256 i = 1; i <= strategyCount; i++) {
+            if (fmaiStrategies[i].token == token) count++;
+        }
+        allocations = new uint256[](count);
+        uint256 j = 0;
+        for (uint256 i = 1; i <= strategyCount; i++) {
+            if (fmaiStrategies[i].token == token) {
+                allocations[j] = fmaiStrategies[i].allocated;
+                j++;
+            }
+        }
+    }
+
+    function getStrategyHarvestsForToken(address token) external view returns (uint256[] memory harvests) {
+        uint256 count = 0;
+        for (uint256 i = 1; i <= strategyCount; i++) {
+            if (fmaiStrategies[i].token == token) count++;
+        }
+        harvests = new uint256[](count);
+        uint256 j = 0;
+        for (uint256 i = 1; i <= strategyCount; i++) {
+            if (fmaiStrategies[i].token == token) {
+                harvests[j] = fmaiStrategies[i].harvested;
+                j++;
+            }
+        }
+    }
+
+    function bpsToFraction(uint256 bps) external pure returns (uint256 num, uint256 denom) {
+        return (bps, FMAI_BPS);
+    }
+
+    function fractionToBps(uint256 num, uint256 denom) external pure returns (uint256 bps) {
