@@ -1188,3 +1188,73 @@ contract FundManagerAI {
 
     function getStrategyInfo(uint256 strategyId) external view returns (
         address targetAddr,
+        address tokenAddr,
+        uint256 allocatedWei,
+        uint256 harvestedWei,
+        uint256 capBpsVal,
+        bool isActive,
+        uint256 addedBlock,
+        uint256 maxAllocWei
+    ) {
+        if (strategyId == 0 || strategyId > strategyCount) revert FMAI_InvalidStrategyId();
+        FMAIStrategy storage s = fmaiStrategies[strategyId];
+        uint256 maxAlloc = (tokenTotalDeposits[s.token] * s.capBps) / FMAI_BPS;
+        return (
+            s.target,
+            s.token,
+            s.allocated,
+            s.harvested,
+            s.capBps,
+            s.active,
+            s.addedAtBlock,
+            maxAlloc
+        );
+    }
+
+    function getDepositorInfo(address user, address token) external view returns (
+        uint256 depositedWei,
+        uint256 withdrawnWei,
+        uint256 netWei,
+        uint256 lastDepositBlockNum,
+        uint256 pendingYieldWei,
+        uint256 yieldClaimedWei,
+        uint256 vestStartBlock,
+        uint256 vestAmountWei
+    ) {
+        FMAIDepositor storage d = fmaiDepositors[user][token];
+        return (
+            d.deposited,
+            d.withdrawn,
+            d.deposited - d.withdrawn,
+            d.lastDepositBlock,
+            d.pendingYield,
+            d.yieldClaimed,
+            d.vestingStartBlock,
+            d.vestingAmount
+        );
+    }
+
+    function getImmutableConfig() external view returns (
+        address treasuryAddr,
+        address keeperAddr,
+        address vaultAddr,
+        uint256 genesisBlockNum,
+        bytes32 domainSep
+    ) {
+        return (treasury, yieldKeeper, vault, genesisBlock, domainSeparator);
+    }
+
+    function getMutableConfig() external view returns (
+        address ownerAddr,
+        bool isPaused,
+        uint256 perfFeeBpsVal,
+        uint256 depFeeBpsVal,
+        uint256 stratCount,
+        uint256 lastHarvestBlk
+    ) {
+        return (owner, fmaiPaused, performanceFeeBps, depositFeeBps, strategyCount, lastHarvestBlock);
+    }
+
+    function getAggregateStats() external view returns (
+        uint256 totalDep,
+        uint256 totalWith,
