@@ -278,3 +278,73 @@ contract FundManagerAI {
 
     function getDepositBalance(address user, address token) external view returns (uint256) {
         FMAIDepositor storage d = fmaiDepositors[user][token];
+        return d.deposited - d.withdrawn;
+    }
+
+    function getClaimableYield(address user, address token) external view returns (uint256) {
+        FMAIDepositor storage d = fmaiDepositors[user][token];
+        if (block.number >= d.vestingStartBlock + FMAI_VESTING_BLOCKS)
+            return d.vestingAmount - d.yieldClaimed;
+        uint256 elapsed = block.number - d.vestingStartBlock;
+        if (elapsed >= FMAI_VESTING_BLOCKS) return d.vestingAmount - d.yieldClaimed;
+        uint256 vested = (d.vestingAmount * elapsed) / FMAI_VESTING_BLOCKS;
+        return vested > d.yieldClaimed ? vested - d.yieldClaimed : 0;
+    }
+
+    function getStrategy(uint256 strategyId) external view returns (
+        address target,
+        address token,
+        uint256 allocated,
+        uint256 harvested,
+        uint256 capBps,
+        bool active,
+        uint256 addedAtBlock
+    ) {
+        if (strategyId == 0 || strategyId > strategyCount) revert FMAI_InvalidStrategyId();
+        FMAIStrategy storage s = fmaiStrategies[strategyId];
+        return (s.target, s.token, s.allocated, s.harvested, s.capBps, s.active, s.addedAtBlock);
+    }
+
+    function getTokenList() external view returns (address[] memory) {
+        return tokenList;
+    }
+
+    function getTokenTotalDeposits(address token) external view returns (uint256) {
+        return tokenTotalDeposits[token];
+    }
+
+    function getGlobalStats() external view returns (
+        uint256 totalDeposited_,
+        uint256 totalWithdrawn_,
+        uint256 totalYieldHarvested_,
+        uint256 strategyCount_,
+        bool paused_
+    ) {
+        return (totalDeposited, totalWithdrawn, totalYieldHarvested, strategyCount, fmaiPaused);
+    }
+
+    uint256 public constant FMAI_TOKEN_LIST_MAX = 64;
+    uint256 public constant FMAI_STRATEGY_NAME_MAX_LEN = 24;
+    uint256 public constant FMAI_YIELD_DECIMALS = 18;
+    uint256 public constant FMAI_GENESIS_SEED = 0x7a2b4c6e8f0a1d3e5b7c9d1f4a6c8e0b2d5f7a9;
+
+    function getDepositorFull(address user, address token) external view returns (
+        uint256 deposited_,
+        uint256 withdrawn_,
+        uint256 netBalance_,
+        uint256 lastDepositBlock_,
+        uint256 pendingYield_,
+        uint256 yieldClaimed_,
+        uint256 vestingStartBlock_,
+        uint256 vestingAmount_
+    ) {
+        FMAIDepositor storage d = fmaiDepositors[user][token];
+        return (
+            d.deposited,
+            d.withdrawn,
+            d.deposited - d.withdrawn,
+            d.lastDepositBlock,
+            d.pendingYield,
+            d.yieldClaimed,
+            d.vestingStartBlock,
+            d.vestingAmount
