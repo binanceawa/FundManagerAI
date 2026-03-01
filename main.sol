@@ -628,3 +628,73 @@ contract FundManagerAI {
         for (uint256 i = 0; i < n; i++) {
             FMAIDepositor storage d = fmaiDepositors[user][tokens[i]];
             if (block.number >= d.vestingStartBlock + FMAI_VESTING_BLOCKS) {
+                claimables[i] = d.vestingAmount - d.yieldClaimed;
+            } else {
+                uint256 elapsed = block.number - d.vestingStartBlock;
+                uint256 vested = (d.vestingAmount * elapsed) / FMAI_VESTING_BLOCKS;
+                claimables[i] = vested > d.yieldClaimed ? vested - d.yieldClaimed : 0;
+            }
+        }
+    }
+
+    uint256 public constant FMAI_VERSION = 1;
+    uint256 public constant FMAI_RESERVE_BPS = 500;
+    uint256 public constant FMAI_EMERGENCY_DELAY_BLOCKS = 100;
+    bytes32 public constant FMAI_HARVEST_TYPEHASH = keccak256("FMAI_Harvest(uint256 strategyId,uint256 amount,uint256 nonce)");
+    bytes32 public constant FMAI_ALLOCATE_TYPEHASH = keccak256("FMAI_Allocate(uint256 strategyId,uint256 amount,uint256 nonce)");
+
+    function computeDepositFee(uint256 amount, uint256 bps) external pure returns (uint256 fee, uint256 net) {
+        fee = (amount * bps) / FMAI_BPS;
+        net = amount - fee;
+    }
+
+    function computePerformanceFee(uint256 amount, uint256 bps) external pure returns (uint256 fee) {
+        return (amount * bps) / FMAI_BPS;
+    }
+
+    function getFullGlobalStats() external view returns (
+        uint256 totalDeposited_,
+        uint256 totalWithdrawn_,
+        uint256 totalYieldHarvested_,
+        uint256 strategyCount_,
+        bool paused_,
+        uint256 perfFeeBps_,
+        uint256 depFeeBps_,
+        uint256 lastHarvestBlock_,
+        uint256 genesisBlock_,
+        uint256 chainId_
+    ) {
+        return (
+            totalDeposited,
+            totalWithdrawn,
+            totalYieldHarvested,
+            strategyCount,
+            fmaiPaused,
+            performanceFeeBps,
+            depositFeeBps,
+            lastHarvestBlock,
+            genesisBlock,
+            block.chainid
+        );
+    }
+
+    function getTokenTotalsBatch(address[] calldata tokens) external view returns (uint256[] memory totals) {
+        uint256 n = tokens.length;
+        totals = new uint256[](n);
+        for (uint256 i = 0; i < n; i++) totals[i] = tokenTotalDeposits[tokens[i]];
+    }
+
+    function getStrategyCapInWei(uint256 strategyId) external view returns (uint256) {
+        if (strategyId == 0 || strategyId > strategyCount) return 0;
+        FMAIStrategy storage s = fmaiStrategies[strategyId];
+        return (tokenTotalDeposits[s.token] * s.capBps) / FMAI_BPS;
+    }
+
+    function blocksUntilHarvestAllowed() external view returns (uint256) {
+        uint256 next = lastHarvestBlock + FMAI_HARVEST_COOLDOWN_BLOCKS;
+        if (block.number >= next) return 0;
+        return next - block.number;
+    }
+
+    function getDepositorSummary(address user) external view returns (
+        uint256 totalDepositedByUser_,
