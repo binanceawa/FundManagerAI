@@ -1398,3 +1398,60 @@ contract FundManagerAI {
     function getDepositorDetails(address user, address token) external view returns (uint256 dep, uint256 withdr, uint256 net) {
         FMAIDepositor storage d = fmaiDepositors[user][token];
         return (d.deposited, d.withdrawn, d.deposited - d.withdrawn);
+    }
+
+    function allowedTokenCount() external view returns (uint256) {
+        return tokenList.length;
+    }
+
+    function strategyIdList() external view returns (uint256[] memory list) {
+        list = new uint256[](strategyCount);
+        for (uint256 i = 0; i < strategyCount; i++) list[i] = i + 1;
+    }
+
+    function tokenAllowed(address t) external view returns (bool) { return allowedTokens[t]; }
+    function totalDepositsForToken(address t) external view returns (uint256) { return tokenTotalDeposits[t]; }
+    function currentPerformanceFeeBps() external view returns (uint256) { return performanceFeeBps; }
+    function currentDepositFeeBps() external view returns (uint256) { return depositFeeBps; }
+    function harvestCooldownBlocks() external pure returns (uint256) { return FMAI_HARVEST_COOLDOWN_BLOCKS; }
+    function vestingBlocksConstant() external pure returns (uint256) { return FMAI_VESTING_BLOCKS; }
+    function minimumDepositWei() external pure returns (uint256) { return FMAI_MIN_DEPOSIT; }
+    function maximumStrategies() external pure returns (uint256) { return FMAI_MAX_STRATEGIES; }
+
+    function bpsDenominator() external pure returns (uint256) { return FMAI_BPS; }
+    function maxFeeBpsLimit() external pure returns (uint256) { return FMAI_MAX_FEE_BPS; }
+    function strategyCapBpsMax() external pure returns (uint256) { return FMAI_STRATEGY_CAP_BPS; }
+    function contractVersion() external pure returns (uint256) { return FMAI_VERSION; }
+
+    function getTokenListLength() external view returns (uint256) { return tokenList.length; }
+    function getStrategyCountValue() external view returns (uint256) { return strategyCount; }
+    function getOwnerAddr() external view returns (address) { return owner; }
+    function getPausedFlag() external view returns (bool) { return fmaiPaused; }
+    function getLastHarvestBlk() external view returns (uint256) { return lastHarvestBlock; }
+    function getGenesisBlk() external view returns (uint256) { return genesisBlock; }
+    function getTreasuryAddr() external view returns (address) { return treasury; }
+    function getKeeperAddr() external view returns (address) { return yieldKeeper; }
+    function getVaultAddr() external view returns (address) { return vault; }
+
+    function getTotalDepositedValue() external view returns (uint256) { return totalDeposited; }
+    function getTotalWithdrawnValue() external view returns (uint256) { return totalWithdrawn; }
+    function getTotalYieldHarvestedValue() external view returns (uint256) { return totalYieldHarvested; }
+    function getDepositFeeBpsValue() external view returns (uint256) { return depositFeeBps; }
+    function getPerformanceFeeBpsValue() external view returns (uint256) { return performanceFeeBps; }
+
+    function _pullToken(address token, address from, uint256 amount) internal {
+        (bool ok, bytes memory data) = token.call(abi.encodeWithSelector(IERC20Min.transferFrom.selector, from, address(this), amount));
+        if (!ok || (data.length >= 32 && abi.decode(data, (bool)) == false)) revert FMAI_TransferFailed();
+    }
+
+    function _pushToken(address token, address to, uint256 amount) internal {
+        (bool ok, bytes memory data) = token.call(abi.encodeWithSelector(IERC20Min.transfer.selector, to, amount));
+        if (!ok || (data.length >= 32 && abi.decode(data, (bool)) == false)) revert FMAI_TransferFailed();
+    }
+}
+
+interface IERC20Min {
+    function transfer(address to, uint256 amount) external returns (bool);
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+}
